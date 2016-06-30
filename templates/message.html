@@ -1,0 +1,10 @@
+{{ define "message" }}
+<div
+{{if eq .AlertLevel 1}} class="alert alert-info"
+{{else if eq .AlertLevel 2}} class="alert alert-success"
+{{else if eq .AlertLevel 3}} class="alert alert-warning"
+{{else if eq .AlertLevel 4}} class="alert alert-danger"
+{{end}}>
+   {{.Message}}
+</div>
+{{ end }}

@@ -1,0 +1,100 @@
+{{ define "content" }}
+<div class="page-header">
+   <h2>{{ .Title }}</h2>
+</div>
+
+{{ template "message" . }}
+
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h3 class="panel-title">Configuration: {{ .ConfigurationName}}</h3>
+  </div>
+  <div class="panel-body">
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h3 class="panel-title">Base Sensors</h3>
+  </div>
+  <div class="panel-body">
+   <ul class="list-group">
+   <li class="list-group-item">Tracker A:
+      {{if eq .StateOfTrackerA 0}}
+      <span class="glyphicon glyphicon-ban-circle"></span>
+      {{else if eq .StateOfTrackerA 1}}
+      <span class="glyphicon glyphicon-ok-circle"></span>
+      {{else if eq .StateOfTrackerA 2}}
+      <span class="glyphicon glyphicon-remove-circle"></span>
+      {{end}}
+   </li>
+   <li class="list-group-item">Tracker B:
+      {{if eq .StateOfTrackerB 0}}
+      <span class="glyphicon glyphicon-ban-circle"></span>
+      {{else if eq .StateOfTrackerB 1}}
+      <span class="glyphicon glyphicon-ok-circle"></span>
+      {{else if eq .StateOfTrackerB 2}}
+      <span class="glyphicon glyphicon-remove-circle"></span>
+      {{end}}
+   </li>
+   <li class="list-group-item">Tracker C:
+      {{if eq .StateOfTrackerC 0}}
+      <span class="glyphicon glyphicon-ban-circle"></span>
+      {{else if eq .StateOfTrackerC 1}}
+      <span class="glyphicon glyphicon-ok-circle"></span>
+      {{else if eq .StateOfTrackerC 2}}
+      <span class="glyphicon glyphicon-remove-circle"></span>
+      {{end}}
+   </li>
+   <li class="list-group-item">Tracker D:
+      {{if eq .StateOfTrackerD 0}}
+      <span class="glyphicon glyphicon-ban-circle"></span>
+      {{else if eq .StateOfTrackerD 1}}
+      <span class="glyphicon glyphicon-ok-circle"></span>
+      {{else if eq .StateOfTrackerD 2}}
+      <span class="glyphicon glyphicon-remove-circle"></span>
+      {{end}}
+   </li>
+</ul>
+  </div>
+</div>
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h3 class="panel-title">Mobile Sensors</h3>
+  </div>
+  <div class="panel-body">
+   <ul class="list-group">
+   <li class="list-group-item">Tracker M:
+      {{if eq .StateOfTrackerM 0}}
+      <span class="glyphicon glyphicon-ban-circle"></span>
+      {{else if eq .StateOfTrackerM 1}}
+      <span class="glyphicon glyphicon-ok-circle"></span>
+      {{else if eq .StateOfTrackerM 2}}
+      <span class="glyphicon glyphicon-remove-circle"></span>
+      {{end}}
+   </li>
+   <li class="list-group-item">Distance:
+      {{if eq .StateOfDistance 0}}
+      <span class="glyphicon glyphicon-ban-circle"></span>
+      {{else if eq .StateOfDistance 1}}
+      <span class="glyphicon glyphicon-ok-circle"></span>
+      {{else if eq .StateOfDistance 2}}
+      <span class="glyphicon glyphicon-remove-circle"></span>
+      {{end}}
+   </li>
+   <li class="list-group-item">Acc &amp; Gyro:
+      {{if eq .StateOfAccGyro 0}}
+      <span class="glyphicon glyphicon-ban-circle"></span>
+      {{else if eq .StateOfAccGyro 1}}
+      <span class="glyphicon glyphicon-ok-circle"></span>
+      {{else if eq .StateOfAccGyro 2}}
+      <span class="glyphicon glyphicon-remove-circle"></span>
+      {{end}}
+   </li>
+</ul>
+  </div>
+</div>
+  </div>
+</div>
+  <br>
+  <ol>
+     <li><a href="/run/">Run the experiment.</a></li>
+  </ol>
+{{ end }}

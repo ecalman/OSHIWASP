@@ -1,0 +1,76 @@
+{{ define "content" }}
+<div class="page-header">
+    <h2>{{ .Title }}</h2>
+</div>
+{{ template "message" . }}
+<form action="/config/" class="form-horizontal" method="POST">
+   <div class="form-group">
+      <label for="inputConfigurationName" class="control-label col-sm-3">Configuration Name</label>
+      <div class="col-sm-6">
+         <input type="text" class="form-control" id="inputConfigurationName" name="ConfigurationName" placeholder="Intro a name for the experiment, without spaces">
+      </div>
+   </div>
+   <div class="form-group"> <!--Base-->
+      <label class="control-label col-sm-3">Base Sensors</label>
+      <div class="col-sm-2">
+         <label class="checkbox-inline">
+            <input type="checkbox" name="SetTrackerA" value="on" checked>Tracker A
+         </label>
+      </div>
+   </div>
+   <div class="form-group"> <!--Base-->
+      <div class="col-sm-offset-3 col-sm-2">
+         <label class="checkbox-inline">
+            <input type="checkbox" name="SetTrackerB" value="on" checked>Tracker B
+         </label>
+      </div>
+   </div>
+   <div class="form-group"> <!--Base-->
+      <div class="col-sm-offset-3 col-sm-2">
+         <label class="checkbox-inline">
+            <input type="checkbox" name="SetTrackerC" value="on" checked>Tracker C
+         </label>
+      </div>
+   </div>
+   <div class="form-group"> <!--Base-->
+      <div class="col-sm-offset-3 col-sm-2">
+         <label class="checkbox-inline">
+            <input type="checkbox" name="SetTrackerD" value="on" checked>Tracker D
+         </label>
+      </div>
+   </div>
+   <div class="form-group"> <!--Mobile-->
+      <label class="control-label col-sm-3">Mobile Sensors</label>
+      <div class="col-sm-2">
+         <label class="checkbox-inline">
+            <input type="checkbox" name="SetTrackerM" value="on" checked>Tracker M
+         </label>
+      </div>
+   </div>
+   <div class="form-group"> <!--Mobile-->
+      <div class="col-sm-offset-3 col-sm-2">
+         <label class="checkbox-inline">
+            <input type="checkbox" name="SetDistance" value="on" checked>Distance
+         </label>
+      </div>
+   </div>
+   <div class="form-group"> <!--Base-->
+      <div class="col-sm-offset-3 col-sm-2">
+         <label class="checkbox-inline">
+            <input type="checkbox" name="SetAccGyro" value="on" checked>Acc + Gyro
+         </label>
+      </div>
+   </div>
+   <div class="form-group">
+      <div class="col-sm-offset-3 col-sm-9">
+         <input type="submit" class="btn btn-primary" value="Config">
+         <input type="reset" class="btn btn-default" value="Reset">
+      </div>
+   </div>
+</form>
+<hr>
+  <ol>
+     <li><a href="/test/">Test the sensors of the platform.</a></li>
+     <li><a href="/run/">Run the experiment.</a></li>
+  </ol>
+{{ end }}

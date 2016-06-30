@@ -1,0 +1,23 @@
+{{ define "content" }}
+<div class="page-header">
+    <h2>{{ .Title }}</h2>
+</div>
+{{ template "message" . }}
+<form action="/init/" class="form-horizontal" method="POST">
+   <div class="form-group">
+      <label for="question" class="control-label col-sm-3">Set the init state?</label>
+      <div class="col-sm-4">
+         <select class="form-control" id="setInitState" name="initializate">
+            <option value="NO">NO</option>
+            <option value="YES">YES</option>
+         </select>
+      </div>
+   </div>
+   <div class="form-group">
+      <div class="col-sm-offset-3 col-sm-4">
+         <input type="submit" class="btn btn-primary" value="Init">
+         <!--input type="reset" class="btn btn-default" value="Reset"-->
+      </div>
+   </div>
+</form>
+{{ end }}

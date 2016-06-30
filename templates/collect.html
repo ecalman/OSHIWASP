@@ -1,0 +1,17 @@
+{{ define "content" }}
+<div class="page-header">
+   <h2>{{ .Title }}</h2>
+</div>
+
+{{ template "message" . }}
+
+<ul class="list-group">
+   {{range .DataFiles}}
+   <li class="list-group-item">
+      <!-- TODO: this is dependent of the path -->
+      <a href="/static/data/{{. | html }}"><span class="glyphicon glyphicon-download-alt"></span>    {{.}}</a>
+   </li>
+   {{end}}
+</ul>
+
+{{ end }}
