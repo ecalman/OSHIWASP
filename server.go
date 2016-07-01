@@ -10,10 +10,34 @@ import (
 	"path"
 	"path/filepath"
 	"time"
+
+	"bufio"
+	"bytes"
+	"encoding/binary"
+	"runtime"
+
+	"github.com/mrmorphic/hwio"
+	"github.com/tarm/serial"
 )
 
 //sensors configuration
 const (
+
+	// arduino serial comm related
+	CommDevName = "/dev/rfcomm1" //name of the BT device
+	Bauds       = 9600           // bauds of the BT serial channel
+
+	// setup of the pinout in the raspberry
+	StatusLedPin = "gpio7" // green
+	ActionLedPin = "gpio8" // yellow
+
+	ButtonAPin = "gpio24" // start
+	ButtonBPin = "gpio23" // stop
+
+	TrackerAPin = "gpio22"
+	TrackerBPin = "gpio18"
+	TrackerCPin = "gpio17"
+	TrackerDPin = "gpio4"
 	// ON sensor activated
 	ON = true
 	// OFF sensor deactivated
@@ -30,6 +54,11 @@ const (
 	BROKEN = 2
 )
 
+//// web related
+// tmplPath = "tmpl/" // path of the template files .html in the local file system
+// dataPath = "data/" // path of the data files in the local file system
+// dataFileExtension = ".csv" //  data file extension in the local file system
+
 // StaticURL URL of the static content
 const StaticURL string = "/static/"
 
@@ -40,7 +69,7 @@ const StaticRoot string = "static/"
 const DataFilePath string = "data/"
 
 // DataExtension extension of the data files
-const DataExtension = ".csv"
+const DataExtension string = ".csv"
 
 //level of attention of the messages
 const (
@@ -52,6 +81,13 @@ const (
 )
 
 //state of the system
+//stateNEW = "NEW"
+//stateRUNNING = "RUNNING"
+//statePAUSED = "PAUSED"
+//stateSTOPPED = "STOPPED"
+//stateERROR = "ERROR"
+
+//state of system
 const (
 	INIT       = 0
 	CONFIGURED = 1
@@ -64,15 +100,24 @@ type Context struct {
 	//web page related
 	Title  string
 	Static string
-	//configuration of the system
+	//web appearance : message and alert level
+	Message    string
+	AlertLevel int // HIDE, INFO, SUCCESS, WARNING, DANGER
+
+	//state of the processed
+	State int //INIT, CONFIGURED, RUNNING, STOPPED
+	//time of acquisition
+	Time0 time.Time
+
+	//configuration name of the system
 	ConfigurationName string
 	// DataFilePath
 	DataFile *os.File
-	//state of the processed
-	State int //INIT, CONFIGURED, RUNNING, STOPPED
-	//message
-	Message    string
-	AlertLevel int // HIDE, INFO, SUCCESS, WARNING, DANGER
+	//datafiles in the data directory
+	DataFiles []string
+
+	//arduino
+	SerialPort *serial.Port
 
 	//settings of the sensors: ON or OFF
 	SetTrackerA bool
@@ -90,13 +135,563 @@ type Context struct {
 	StateOfTrackerM int
 	StateOfDistance int
 	StateOfAccGyro  int
-
-	//datafiles in the data directory
-	DataFiles []string
 }
 
-//All the context of the execution with system and web data
-var context Context
+// SensorDataInBytes data for sensors in Arduino in bytes
+type SensorDataInBytes struct {
+	sincroMicroSecondsInBytes []byte
+	sensorMicroSecondsInBytes []byte
+	distanceInBytes           []byte
+	accXInBytes               []byte
+	accYInBytes               []byte
+	accZInBytes               []byte
+	gyrXInBytes               []byte
+	gyrYInBytes               []byte
+	gyrZInBytes               []byte
+}
+
+// SensorData data for sensors in Arduino in numerical data types
+type SensorData struct {
+	sincroMicroSeconds uint32
+	sensorMicroSeconds uint32
+	distance           uint32
+	accX               float32
+	accY               float32
+	accZ               float32
+	gyrX               float32
+	gyrY               float32
+	gyrZ               float32
+}
+
+// Oshiwasp definition of configuration of raspberry sensors, leds and buttons
+type Oshiwasp struct {
+	statusLed hwio.Pin
+	actionLed hwio.Pin
+	buttonA   hwio.Pin
+	buttonB   hwio.Pin
+	trackerA  hwio.Pin
+	trackerB  hwio.Pin
+	trackerC  hwio.Pin
+	trackerD  hwio.Pin
+}
+
+// // SensorData data for sensors in Arduino
+// type SensorData struct{
+//         sincroMicroSeconds uint32
+//         sensorMicroSeconds uint32
+//         distance uint32
+//         accX float32
+//         accY float32
+//         accZ float32
+//         gyrX float32
+//         gyrY float32
+//         gyrZ float32
+// }
+// // SensorDataIn Bytes data for sensors in Arduino in bytes
+// type SensorDataInBytes struct{
+//    sincroMicroSecondsInBytes []byte
+// 	sensorMicroSecondsInBytes []byte
+// 	distanceInBytes []byte
+// 	accXInBytes []byte
+// 	accYInBytes []byte
+// 	accZInBytes []byte
+// 	gyrXInBytes []byte
+// 	gyrYInBytes []byte
+// 	gyrZInBytes []byte
+// }
+//
+// //Acquisition definition
+// type Acquisition struct{
+//     outputFileName string
+//     outputFile *os.File
+//     state string
+//     time0 time.Time
+//     //arduino
+//     serialPort *serial.Port
+//     //configuration
+//     ConfigurationName string
+//     TrackerA          bool
+//     TrackerB          bool
+//     TrackerC          bool
+//     TrackerD          bool
+//     TrackerM          bool
+//     Distance          bool
+//     AccGyro           bool
+// }
+//
+// // StateOfSensors state
+// type StateOfSensors struct { // state of the sensors
+//         ConfigurationName string
+//         TrackerA          string
+//         TrackerB          string
+//         TrackerC          string
+//         TrackerD          string
+//         TrackerM          string
+//         Distance          string
+//         AccGyro           string
+// }
+//
+
+var (
+	c chan int //channel initialitation
+	//actionLed hwio.Pin // indicating action in the system
+
+	// templates = template.Must(template.ParseGlob(tmplPath+"*.tmpl"))
+	// validPath = regexp.MustCompile("^/(index|new|status|start|pause|resume|stop|download|data)/([a-zA-Z0-9]+)$")
+
+	theSensorData        = new(SensorData)
+	theSensorDataInBytes = new(SensorDataInBytes)
+
+	//All the context of the execution with system and web data
+	theContext = new(Context) //theAcq=new(Acquisition)
+
+	theOshi = new(Oshiwasp)
+)
+
+//AAAAAAAAAAAAAA
+// Acquisition section
+//AAAAAAAAAAAAAA
+
+func (cntxt *Context) connectArduinoSerialBT() {
+	// config the comm port for serial via BT
+	commPort := &serial.Config{Name: commDevName, Baud: bauds}
+	// open the serial comm with the arduino via BT
+	cntxt.SerialPort, _ = serial.OpenPort(commPort)
+	//defer acq.serialPort.Close()
+	log.Printf("Open serial device %s", commDevName)
+}
+
+func (acq *Acquisition) setArduinoStateON() {
+	// activate the readdings in Arduino sending 'ON'
+	log.Printf("before write on")
+	_, err := acq.serialPort.Write([]byte("n"))
+	log.Printf("after write on")
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (acq *Acquisition) setArduinoStateOFF() {
+	// deactivate the readdings in Artudino sending 'OFF'
+	log.Printf("before write off")
+	_, err := acq.serialPort.Write([]byte("f"))
+	log.Printf("after write off")
+	if err != nil {
+		log.Printf("error!! after write off")
+		log.Fatal(err)
+	}
+}
+
+func (cntxt *Context) setTime0() {
+	cntxt.Time0 = time.Now()
+}
+
+func (cntxt *Context) getTime0() time.Time {
+	return cntxt.Time0
+}
+
+// func (cntxt *Context) getState() int {
+// 	return cntxt.State
+// }
+
+// func (cntxt *Context) setState(s int) {
+// 	cntxt.State = s
+// 	log.Printf("State set to %d\n", cntxt.State)
+// }
+
+// func (acq *Acquisition) setStateNEW() {
+// 	acq.state = stateNEW
+// 	acq.setArduinoStateOFF()
+//
+// 	log.Printf("State: NEW")
+// }
+
+// func (acq *Acquisition) setStateRUNNING() {
+// 	acq.state = stateRUNNING
+// 	acq.setArduinoStateON()
+// 	log.Printf("State: RUNNING")
+// }
+
+// func (acq *Acquisition) setStatePAUSED() {
+// 	acq.state = statePAUSED
+// 	acq.setArduinoStateOFF()
+// 	log.Printf("State: PAUSED")
+// }
+
+// func (acq *Acquisition) setStateSTOPPED() {
+// 	acq.state = stateSTOPPED
+// 	acq.setArduinoStateOFF()
+// 	log.Printf("State: STOPPED")
+// }
+
+// func (acq *Acquisition) setStateERROR() {
+// 	acq.state = stateERROR
+// 	acq.setArduinoStateOFF()
+// 	log.Printf("State: ERROR")
+// }
+
+// // set the output file name based in the configurationName
+// func (acq *Acquisition) setOutputFileName(s string) {
+// 	acq.outputFileName = s
+// 	log.Printf("Output Filename set to %s\n", acq.outputFileName)
+// }
+
+func (acq *Acquisition) createOutputFile() {
+	var e error
+	acq.setOutputFileName(dataPath + acq.ConfigurationName + dataFileExtension)
+	acq.outputFile, e = os.Create(acq.outputFileName)
+	if e != nil {
+		panic(e)
+	}
+	statusLine := fmt.Sprintf("### %v Data Acquisition: %s \n\n", time.Now(), acq.ConfigurationName)
+	acq.outputFile.WriteString(statusLine)
+	formatLine := fmt.Sprintf("### [Ard], localTime(us), sincroTime(us), sensorTime(us), distance(mm), accX(g), accY(g), accZ(g), gyrX(gr/s), gyrY(gr/s), gyrZ(gr/s) \n\n")
+	acq.outputFile.WriteString(formatLine)
+
+	log.Printf("Cretated output File %s", acq.outputFileName)
+}
+
+func (acq *Acquisition) reopenOutputFile() {
+	var e error
+	acq.outputFile, e = os.OpenFile(acq.outputFileName, os.O_WRONLY|os.O_APPEND, 0666)
+	if e != nil {
+		panic(e)
+	}
+	log.Printf("Reopen output File %s", acq.outputFileName)
+}
+
+func (acq Acquisition) closeOutputFile() { //close the output file
+	acq.outputFile.Close()
+	log.Printf("Closed output File %s", acq.outputFileName)
+}
+
+func (cntxt *Context) initiate() {
+	//acq.setOutputFileName(dataPath+dataFileName+dataFileExtension)
+	//acq.createOutputFile()
+	cntxt.connectArduinoSerialBT()
+	log.Printf("Arduino connected!")
+	cntxt.setStateNEW()
+}
+
+//OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+// Oshiwasp section: Raspberry sensors
+//OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+
+func (oshi *Oshiwasp) initiate() {
+
+	var e error
+	// Set up 'trakers' as inputs
+	oshi.trackerA, e = hwio.GetPinWithMode(trackerAPin, hwio.INPUT)
+	if e != nil {
+		panic(e)
+	}
+	log.Printf("Set pin %s as trackerA\n", trackerAPin)
+
+	oshi.trackerB, e = hwio.GetPinWithMode(trackerBPin, hwio.INPUT)
+	if e != nil {
+		panic(e)
+	}
+	log.Printf("Set pin %s as trackerB\n", trackerBPin)
+
+	oshi.trackerC, e = hwio.GetPinWithMode(trackerCPin, hwio.INPUT)
+	if e != nil {
+		panic(e)
+	}
+	log.Printf("Set pin %s as trackerC\n", trackerCPin)
+
+	oshi.trackerD, e = hwio.GetPinWithMode(trackerDPin, hwio.INPUT)
+	if e != nil {
+		panic(e)
+	}
+	log.Printf("Set pin %s as trackerD\n", trackerDPin)
+
+	// Set up 'buttons' as inputs
+	oshi.buttonA, e = hwio.GetPinWithMode(buttonAPin, hwio.INPUT)
+	if e != nil {
+		panic(e)
+	}
+	log.Printf("Set pin %s as buttonA\n", buttonAPin)
+
+	oshi.buttonB, e = hwio.GetPinWithMode(buttonBPin, hwio.INPUT)
+	if e != nil {
+		panic(e)
+	}
+	log.Printf("Set pin %s as buttonB\n", buttonBPin)
+
+	// Set up 'leds' as outputs
+	oshi.statusLed, e = hwio.GetPinWithMode(statusLedPin, hwio.OUTPUT)
+	if e != nil {
+		panic(e)
+	}
+	log.Printf("Set pin %s as statusLed\n", statusLedPin)
+
+	oshi.actionLed, e = hwio.GetPinWithMode(actionLedPin, hwio.OUTPUT)
+	if e != nil {
+		panic(e)
+	}
+	log.Printf("Set pin %s as actionLed\n", actionLedPin)
+}
+
+func readTracker(name string, trackerPin hwio.Pin) {
+
+	oldValue := 0            //value readed from tracker, initially set to 0, because the tracker was innactive
+	timeAction := time.Now() // time of the action detected
+
+	// loop
+	for theAcq.getState() != stateSTOPPED {
+		// Read the tracker value
+		value, e := hwio.DigitalRead(trackerPin)
+		if e != nil {
+			panic(e)
+		}
+		//timeActionOld=timeAction //store the last time
+		timeAction = time.Now() // time at this point
+		// Did value change?
+		if (value == 1) && (value != oldValue) {
+			if theAcq.getState() != statePAUSED {
+				dataString := fmt.Sprintf("[%s], %d,\n",
+					name, int64(timeAction.Sub(theAcq.getTime0())/time.Microsecond))
+				log.Println(dataString)
+				theAcq.outputFile.WriteString(dataString)
+			}
+
+			// Write the value to the led indicating somewhat is happened
+			if value == 1 {
+				hwio.DigitalWrite(theOshi.actionLed, hwio.HIGH)
+			} else {
+				hwio.DigitalWrite(theOshi.actionLed, hwio.LOW)
+			}
+		}
+		oldValue = value
+	}
+}
+
+func (cntxt *Context) readFromArduino() {
+
+	var register, reg []byte
+	// operate with the gobal variables theSensorData and theSensorDataInBytes; more speed?
+
+	// don't use the first readding ??  I'm not sure about that
+	reader := bufio.NewReader(cntxt.SerialPort)
+	// find the begging of an stream of data from the sensors
+	register, err := reader.ReadBytes('\x24')
+	if err != nil {
+		log.Fatal(err)
+	}
+	//log.Println(register)
+	//log.Printf(">>>>>>>>>>>>>>")
+
+	// loop
+	for cntxt.State != STOPPED {
+		// Read the serial and decode
+
+		register = nil
+		reg = nil
+
+		//n, err = s.Read(register)
+		for len(register) < 38 { // in case of \x24 chars repeted the length will be less than the expected 38 bytes
+			reg, err = reader.ReadBytes('\x24')
+			if err != nil {
+				log.Fatal(err)
+			}
+			register = append(register, reg...)
+		}
+
+		receptionTime := time.Now() // time of the action detected
+
+		if register[0] == '\x23' { // if first byte is '#', lets decode the stream of bytes in register
+
+			//decode the register
+
+			theSensorDataInBytes.sincroMicroSecondsInBytes = register[1:5]
+			buf := bytes.NewReader(theSensorDataInBytes.sincroMicroSecondsInBytes)
+			err = binary.Read(buf, binary.LittleEndian, &theSensorData.sincroMicroSeconds)
+
+			theSensorDataInBytes.sensorMicroSecondsInBytes = register[5:9]
+			buf = bytes.NewReader(theSensorDataInBytes.sensorMicroSecondsInBytes)
+			err = binary.Read(buf, binary.LittleEndian, &theSensorData.sensorMicroSeconds)
+
+			theSensorDataInBytes.distanceInBytes = register[9:13]
+			buf = bytes.NewReader(theSensorDataInBytes.distanceInBytes)
+			err = binary.Read(buf, binary.LittleEndian, &theSensorData.distance)
+
+			theSensorDataInBytes.accXInBytes = register[13:17]
+			buf = bytes.NewReader(theSensorDataInBytes.accXInBytes)
+			err = binary.Read(buf, binary.LittleEndian, &theSensorData.accX)
+
+			theSensorDataInBytes.accYInBytes = register[17:21]
+			buf = bytes.NewReader(theSensorDataInBytes.accYInBytes)
+			err = binary.Read(buf, binary.LittleEndian, &theSensorData.accY)
+
+			theSensorDataInBytes.accZInBytes = register[21:25]
+			buf = bytes.NewReader(theSensorDataInBytes.accZInBytes)
+			err = binary.Read(buf, binary.LittleEndian, &theSensorData.accZ)
+
+			theSensorDataInBytes.gyrXInBytes = register[25:29]
+			buf = bytes.NewReader(theSensorDataInBytes.gyrXInBytes)
+			err = binary.Read(buf, binary.LittleEndian, &theSensorData.gyrX)
+
+			theSensorDataInBytes.gyrYInBytes = register[29:33]
+			buf = bytes.NewReader(theSensorDataInBytes.gyrYInBytes)
+			err = binary.Read(buf, binary.LittleEndian, &theSensorData.gyrY)
+
+			theSensorDataInBytes.gyrZInBytes = register[33:37]
+			buf = bytes.NewReader(theSensorDataInBytes.gyrZInBytes)
+			err = binary.Read(buf, binary.LittleEndian, &theSensorData.gyrZ)
+
+		} // if
+
+		//compound the dataline and write to the output
+		//receptionTime= time.Now() // Alternative: time at this point
+		dataString := fmt.Sprintf("[%s], %d, %d, %d, %d, %f, %f, %f, %f, %f, %f\n", "Ard", int64(receptionTime.Sub(theAcq.getTime0())/time.Microsecond), theSensorData.sincroMicroSeconds, theSensorData.sensorMicroSeconds, theSensorData.distance, theSensorData.accX, theSensorData.accY, theSensorData.accZ, theSensorData.gyrX, theSensorData.gyrY, theSensorData.gyrZ)
+
+		log.Println(dataString)
+		cntxt.DataFile.WriteString(dataString)
+		// Write the value to the led indicating somewhat is happened
+		hwio.DigitalWrite(theOshi.actionLed, hwio.HIGH)
+		hwio.DigitalWrite(theOshi.actionLed, hwio.LOW)
+	}
+}
+
+// // another version looking for more speed, based in local variables
+// func (acq *Acquisition) readFromArduino2() {
+//
+// 	var register, reg []byte
+// 	var sincroMicroSecondsInBytes []byte
+// 	var sensorMicroSecondsInBytes []byte
+// 	var distanceInBytes []byte
+// 	var accXInBytes []byte
+// 	var accYInBytes []byte
+// 	var accZInBytes []byte
+// 	var gyrXInBytes []byte
+// 	var gyrYInBytes []byte
+// 	var gyrZInBytes []byte
+// 	var sincroMicroSeconds uint32
+// 	var sensorMicroSeconds uint32
+// 	var distance uint32
+// 	var accX float32
+// 	var accY float32
+// 	var accZ float32
+// 	var gyrX float32
+// 	var gyrY float32
+// 	var gyrZ float32
+//
+// 	// don't use the first readding ??  I'm not sure about that
+// 	reader := bufio.NewReader(acq.serialPort)
+// 	// find the begging of an stream of data from the sensors
+// 	register, err := reader.ReadBytes('\x24')
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	//log.Println(register)
+// 	//log.Printf(">>>>>>>>>>>>>>")
+//
+// 	// loop
+// 	for acq.getState() != stateSTOPPED {
+// 		// Read the serial and decode
+//
+// 		register = nil
+// 		reg = nil
+//
+// 		//n, err = s.Read(register)
+// 		for len(register) < 38 { // in case of \x24 chars repeted maked the length will be less than the expected 38 bytes
+// 			reg, err = reader.ReadBytes('\x24')
+// 			if err != nil {
+// 				log.Fatal(err)
+// 			}
+// 			register = append(register, reg...)
+// 		}
+//
+// 		receptionTime := time.Now() // time of the action detected
+//
+// 		if register[0] == '\x23' {
+//
+// 			//decode the register
+//
+// 			sincroMicroSecondsInBytes = register[1:5]
+// 			buf := bytes.NewReader(sincroMicroSecondsInBytes)
+// 			err = binary.Read(buf, binary.LittleEndian, &sincroMicroSeconds)
+//
+// 			sensorMicroSecondsInBytes = register[5:9]
+// 			buf = bytes.NewReader(sensorMicroSecondsInBytes)
+// 			err = binary.Read(buf, binary.LittleEndian, &sensorMicroSeconds)
+//
+// 			distanceInBytes = register[9:13]
+// 			buf = bytes.NewReader(distanceInBytes)
+// 			err = binary.Read(buf, binary.LittleEndian, &distance)
+//
+// 			accXInBytes = register[13:17]
+// 			buf = bytes.NewReader(accXInBytes)
+// 			err = binary.Read(buf, binary.LittleEndian, &accX)
+//
+// 			accYInBytes = register[17:21]
+// 			buf = bytes.NewReader(accYInBytes)
+// 			err = binary.Read(buf, binary.LittleEndian, &accY)
+//
+// 			accZInBytes = register[21:25]
+// 			buf = bytes.NewReader(accZInBytes)
+// 			err = binary.Read(buf, binary.LittleEndian, &accZ)
+//
+// 			gyrXInBytes = register[25:29]
+// 			buf = bytes.NewReader(gyrXInBytes)
+// 			err = binary.Read(buf, binary.LittleEndian, &gyrX)
+//
+// 			gyrYInBytes = register[29:33]
+// 			buf = bytes.NewReader(gyrYInBytes)
+// 			err = binary.Read(buf, binary.LittleEndian, &gyrY)
+//
+// 			gyrZInBytes = register[33:37]
+// 			buf = bytes.NewReader(gyrZInBytes)
+// 			err = binary.Read(buf, binary.LittleEndian, &gyrZ)
+//
+// 		} // if
+//
+// 		if acq.getState() != statePAUSED {
+// 			//compound the dataline and write to the output
+// 			//receptionTime= time.Now() // Alternative: time at this point
+// 			dataString := fmt.Sprintf("[%s], %v, %d, %d, %d, %f, %f, %f, %f, %f, %f\n",
+// 				"Ard", receptionTime.Sub(theAcq.getTime0()),
+// 				sincroMicroSeconds, sensorMicroSeconds, distance,
+// 				accX, accY, accZ, gyrX, gyrY, gyrZ)
+//
+// 			log.Println(dataString)
+// 			acq.outputFile.WriteString(dataString)
+// 		}
+// 		// Write the value to the led indicating somewhat is happened
+// 		hwio.DigitalWrite(theOshi.actionLed, hwio.HIGH)
+// 		hwio.DigitalWrite(theOshi.actionLed, hwio.LOW)
+// 	}
+// }
+
+func blinkingLed(ledPin hwio.Pin) int {
+	// loop
+	for {
+		hwio.DigitalWrite(ledPin, hwio.HIGH)
+		hwio.Delay(500)
+		hwio.DigitalWrite(ledPin, hwio.LOW)
+		hwio.Delay(500)
+	}
+}
+
+func waitTillButtonPushed(buttonPin hwio.Pin) int {
+
+	// loop
+	for {
+		// Read the tracker value
+		value, e := hwio.DigitalRead(buttonPin)
+		if e != nil {
+			panic(e)
+		}
+		// Was the button pressed, value = 1?
+		if value == 1 {
+			return value
+		}
+	}
+}
+
+//////////////
+// Web section (web server prototype not connected)
+//////////////
 
 //RemoveContents erase the contents of a directory
 //intended to remove data files en data directory
@@ -181,7 +776,7 @@ func Init(w http.ResponseWriter, req *http.Request) {
 			render(w, "experiment", context)
 		}
 	case RUNNING:
-		// worng state
+		// wrong state
 		context.Message = "System is running! It MUST be stopped before erase the configuration and set the initial state."
 		context.AlertLevel = DANGER
 		context.Title = "Run"
@@ -388,6 +983,12 @@ func Run(w http.ResponseWriter, req *http.Request) {
 			if err != nil {
 				fmt.Println(err.Error())
 			}
+			statusLine := fmt.Sprintf("### %v Data Acquisition: %s \n\n", time.Now(), context.ConfigurationName)
+			context.DataFile.WriteString(statusLine)
+			formatLine := fmt.Sprintf("### [Ard], localTime(us), sincroTime(us), sensorTime(us), distance(mm), accX(g), accY(g), accZ(g), gyrX(gr/s), gyrY(gr/s), gyrZ(gr/s) \n\n")
+			context.DataFile.WriteString(formatLine)
+			// sets the new time0 only with a new scenery
+			context.setTime0()
 		} else {
 			//open fle to append
 			fmt.Println("Openning ", dataFileName)
@@ -399,14 +1000,34 @@ func Run(w http.ResponseWriter, req *http.Request) {
 
 		// running process instruction here!
 		// running process instruction here!
-		// running process instruction here!
 
+		//waitTillButtonPushed(buttonA)
+		hwio.DigitalWrite(theOshi.statusLed, hwio.HIGH)
+		log.Println("Beginning.....")
+
+		// launch the trackers
+
+		log.Printf("There are %v goroutines", runtime.NumGoroutine())
+		log.Printf("Launching the Gourutines")
+
+		go theAcq.readFromArduino()
+		log.Println("Started Arduino")
+		go readTracker("A", theOshi.trackerA)
+		log.Println("Started Tracker A")
+		go readTracker("B", theOshi.trackerB)
+		log.Println("Started Tracker B")
+		go readTracker("C", theOshi.trackerC)
+		log.Println("Started Tracker C")
+		go readTracker("D", theOshi.trackerD)
+		log.Println("Started Tracker D")
+
+		log.Printf("There are %v goroutines", runtime.NumGoroutine())
 		//dump the data gathered in DataFile
-		_, err = context.DataFile.WriteString("123, 123, 123, 123\n")
-		err = context.DataFile.Sync()
-		if err != nil {
-			fmt.Println(err.Error())
-		}
+		//_, err = context.DataFile.WriteString("123, 123, 123, 123\n")
+		//err = context.DataFile.Sync()
+		//if err != nil {
+		//	fmt.Println(err.Error())
+		//}
 		//defer close the file to STOP
 
 		context.Message = "System running gathering data from sensors."
@@ -440,6 +1061,9 @@ func Stop(w http.ResponseWriter, req *http.Request) {
 		// stop process instruction here!
 		// stop process instruction here!
 		// stop process instruction here!
+		hwio.DigitalWrite(theOshi.statusLed, hwio.LOW)
+		// close the GPIO pins
+		//hwio.CloseAll()
 
 		//close the file
 		err := context.DataFile.Sync()
@@ -552,6 +1176,8 @@ func StaticHandler(w http.ResponseWriter, req *http.Request) {
 func main() {
 	//set the initial state
 	context.State = INIT
+	theAcq.initiate()
+	theOshi.initiate()
 
 	http.HandleFunc("/", Home)
 	http.HandleFunc("/thePlatform/", ThePlatform)
@@ -565,8 +1191,13 @@ func main() {
 	http.HandleFunc("/about/", About)
 	http.HandleFunc("/help/", Help)
 	http.HandleFunc(StaticURL, StaticHandler)
+
 	err := http.ListenAndServe(":8000", nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
+
+	// close the GPIO pins
+	defer theAcq.serialPort.Close()
+	hwio.CloseAll()
 }
