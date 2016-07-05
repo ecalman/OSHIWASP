@@ -261,6 +261,8 @@ type Oshiwasp struct {
 // }
 //
 
+//comment for free
+
 var (
 	c chan int //channel initialitation
 	//actionLed hwio.Pin // indicating action in the system
