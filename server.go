@@ -21,7 +21,6 @@ import (
 )
 
 //sensors configuration
-//sensors configuration
 
 const (
 
