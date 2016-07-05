@@ -21,23 +21,31 @@ import (
 )
 
 //sensors configuration
-//sensors configuration
+
 const (
 
-	// arduino serial comm related
+	// CommDevName arduino serial comm related
 	CommDevName = "/dev/rfcomm1" //name of the BT device
-	Bauds       = 9600           // bauds of the BT serial channel
+	//Bauds Bauds
+	Bauds = 9600 // bauds of the BT serial channel
 
-	// setup of the pinout in the raspberry
+	//StatusLedPin pin which shows the status
 	StatusLedPin = "gpio7" // green
+	//ActionLedPin pin which shows the action of the system
 	ActionLedPin = "gpio8" // yellow
 
+	//ButtonAPin pin
 	ButtonAPin = "gpio24" // start
+	//ButtonBPin pin
 	ButtonBPin = "gpio23" // stop
 
+	//TrackerAPin pin
 	TrackerAPin = "gpio22"
+	//TrackerBPin pin
 	TrackerBPin = "gpio18"
+	//TrackerCPin pin
 	TrackerCPin = "gpio17"
+	//TrackerDPin pin
 	TrackerDPin = "gpio4"
 	// ON sensor activated
 	ON = true
