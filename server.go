@@ -52,6 +52,9 @@ const (
 	READY = 1
 	//BROKEN
 	BROKEN = 2
+	//string received by the form configuration
+	SensorStateOn  = "on"
+	SensorStateOff = "off"
 )
 
 //// web related
@@ -68,8 +71,8 @@ const StaticRoot string = "static/"
 // DataFilePath path of the data files on StaticRoot
 const DataFilePath string = "data/"
 
-// DataExtension extension of the data files
-const DataExtension string = ".csv"
+// DataFileExtension extension of the data files
+const DataFileExtension string = ".csv"
 
 //level of attention of the messages
 const (
@@ -95,6 +98,21 @@ const (
 	STOPPED    = 3
 )
 
+//title of pages respect of state
+const (
+	titleWelcome     = "Welcome!"
+	titleThePlatform = "The Platform"
+	titleInit        = "Initialization"
+	titleConfig      = "Configuration of Sensor Platform"
+	titleTest        = "Test the Sensor Platform"
+	titleExperiment  = "Experiment"
+	titleRun         = "Run"
+	titleStop        = "Stop"
+	titleCollect     = "Collect Data"
+	titleAbout       = "About"
+	titleHelp        = "Help"
+)
+
 //Context data about the configuration of the system and the web page
 type Context struct {
 	//web page related
@@ -115,6 +133,8 @@ type Context struct {
 	DataFile *os.File
 	//datafiles in the data directory
 	DataFiles []string
+	//data file name
+	DataFileName string
 
 	//arduino
 	SerialPort *serial.Port
@@ -163,7 +183,7 @@ type SensorData struct {
 	gyrZ               float32
 }
 
-// Oshiwasp definition of configuration of raspberry sensors, leds and buttons
+// Oshiwasp definition of configPuration of raspberry sensors, leds and buttons
 type Oshiwasp struct {
 	statusLed hwio.Pin
 	actionLed hwio.Pin
@@ -243,7 +263,7 @@ var (
 	theSensorDataInBytes = new(SensorDataInBytes)
 
 	//All the context of the execution with system and web data
-	theContext = new(Context) //theAcq=new(Acquisition)
+	theContext Context //theAcq=new(Acquisition)
 
 	theOshi = new(Oshiwasp)
 )
@@ -254,27 +274,27 @@ var (
 
 func (cntxt *Context) connectArduinoSerialBT() {
 	// config the comm port for serial via BT
-	commPort := &serial.Config{Name: commDevName, Baud: bauds}
+	commPort := &serial.Config{Name: CommDevName, Baud: Bauds}
 	// open the serial comm with the arduino via BT
 	cntxt.SerialPort, _ = serial.OpenPort(commPort)
 	//defer acq.serialPort.Close()
-	log.Printf("Open serial device %s", commDevName)
+	log.Printf("Open serial device %s", CommDevName)
 }
 
-func (acq *Acquisition) setArduinoStateON() {
+func (cntxt *Context) setArduinoStateON() {
 	// activate the readdings in Arduino sending 'ON'
 	log.Printf("before write on")
-	_, err := acq.serialPort.Write([]byte("n"))
+	_, err := cntxt.SerialPort.Write([]byte("n"))
 	log.Printf("after write on")
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func (acq *Acquisition) setArduinoStateOFF() {
+func (cntxt *Context) setArduinoStateOFF() {
 	// deactivate the readdings in Artudino sending 'OFF'
 	log.Printf("before write off")
-	_, err := acq.serialPort.Write([]byte("f"))
+	_, err := cntxt.SerialPort.Write([]byte("f"))
 	log.Printf("after write off")
 	if err != nil {
 		log.Printf("error!! after write off")
@@ -336,41 +356,41 @@ func (cntxt *Context) getTime0() time.Time {
 // 	log.Printf("Output Filename set to %s\n", acq.outputFileName)
 // }
 
-func (acq *Acquisition) createOutputFile() {
+func (cntxt *Context) createOutputFile() {
 	var e error
-	acq.setOutputFileName(dataPath + acq.ConfigurationName + dataFileExtension)
-	acq.outputFile, e = os.Create(acq.outputFileName)
+	cntxt.DataFileName = DataFilePath + cntxt.ConfigurationName + DataFileExtension
+	cntxt.DataFile, e = os.Create(cntxt.DataFileName)
 	if e != nil {
 		panic(e)
 	}
-	statusLine := fmt.Sprintf("### %v Data Acquisition: %s \n\n", time.Now(), acq.ConfigurationName)
-	acq.outputFile.WriteString(statusLine)
+	statusLine := fmt.Sprintf("### %v Data Acquisition: %s \n\n", time.Now(), cntxt.ConfigurationName)
+	cntxt.DataFile.WriteString(statusLine)
 	formatLine := fmt.Sprintf("### [Ard], localTime(us), sincroTime(us), sensorTime(us), distance(mm), accX(g), accY(g), accZ(g), gyrX(gr/s), gyrY(gr/s), gyrZ(gr/s) \n\n")
-	acq.outputFile.WriteString(formatLine)
+	cntxt.DataFile.WriteString(formatLine)
 
-	log.Printf("Cretated output File %s", acq.outputFileName)
+	log.Printf("Cretated output File %s", cntxt.DataFileName)
 }
 
-func (acq *Acquisition) reopenOutputFile() {
-	var e error
-	acq.outputFile, e = os.OpenFile(acq.outputFileName, os.O_WRONLY|os.O_APPEND, 0666)
-	if e != nil {
-		panic(e)
-	}
-	log.Printf("Reopen output File %s", acq.outputFileName)
-}
+// func (acq *Acquisition) reopenOutputFile() {
+// 	var e error
+// 	acq.outputFile, e = os.OpenFile(acq.outputFileName, os.O_WRONLY|os.O_APPEND, 0666)
+// 	if e != nil {
+// 		panic(e)
+// 	}
+// 	log.Printf("Reopen output File %s", acq.outputFileName)
+// }
 
-func (acq Acquisition) closeOutputFile() { //close the output file
-	acq.outputFile.Close()
-	log.Printf("Closed output File %s", acq.outputFileName)
-}
+// func (acq Acquisition) closeOutputFile() { //close the output file
+// 	acq.outputFile.Close()
+// 	log.Printf("Closed output File %s", acq.outputFileName)
+// }
 
 func (cntxt *Context) initiate() {
 	//acq.setOutputFileName(dataPath+dataFileName+dataFileExtension)
 	//acq.createOutputFile()
 	cntxt.connectArduinoSerialBT()
 	log.Printf("Arduino connected!")
-	cntxt.setStateNEW()
+	//cntxt.setStateNEW()
 }
 
 //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
@@ -381,66 +401,66 @@ func (oshi *Oshiwasp) initiate() {
 
 	var e error
 	// Set up 'trakers' as inputs
-	oshi.trackerA, e = hwio.GetPinWithMode(trackerAPin, hwio.INPUT)
+	oshi.trackerA, e = hwio.GetPinWithMode(TrackerAPin, hwio.INPUT)
 	if e != nil {
 		panic(e)
 	}
-	log.Printf("Set pin %s as trackerA\n", trackerAPin)
+	log.Printf("Set pin %s as trackerA\n", TrackerAPin)
 
-	oshi.trackerB, e = hwio.GetPinWithMode(trackerBPin, hwio.INPUT)
+	oshi.trackerB, e = hwio.GetPinWithMode(TrackerBPin, hwio.INPUT)
 	if e != nil {
 		panic(e)
 	}
-	log.Printf("Set pin %s as trackerB\n", trackerBPin)
+	log.Printf("Set pin %s as trackerB\n", TrackerBPin)
 
-	oshi.trackerC, e = hwio.GetPinWithMode(trackerCPin, hwio.INPUT)
+	oshi.trackerC, e = hwio.GetPinWithMode(TrackerCPin, hwio.INPUT)
 	if e != nil {
 		panic(e)
 	}
-	log.Printf("Set pin %s as trackerC\n", trackerCPin)
+	log.Printf("Set pin %s as trackerC\n", TrackerCPin)
 
-	oshi.trackerD, e = hwio.GetPinWithMode(trackerDPin, hwio.INPUT)
+	oshi.trackerD, e = hwio.GetPinWithMode(TrackerDPin, hwio.INPUT)
 	if e != nil {
 		panic(e)
 	}
-	log.Printf("Set pin %s as trackerD\n", trackerDPin)
+	log.Printf("Set pin %s as trackerD\n", TrackerDPin)
 
 	// Set up 'buttons' as inputs
-	oshi.buttonA, e = hwio.GetPinWithMode(buttonAPin, hwio.INPUT)
+	oshi.buttonA, e = hwio.GetPinWithMode(ButtonAPin, hwio.INPUT)
 	if e != nil {
 		panic(e)
 	}
-	log.Printf("Set pin %s as buttonA\n", buttonAPin)
+	log.Printf("Set pin %s as buttonA\n", ButtonAPin)
 
-	oshi.buttonB, e = hwio.GetPinWithMode(buttonBPin, hwio.INPUT)
+	oshi.buttonB, e = hwio.GetPinWithMode(ButtonBPin, hwio.INPUT)
 	if e != nil {
 		panic(e)
 	}
-	log.Printf("Set pin %s as buttonB\n", buttonBPin)
+	log.Printf("Set pin %s as buttonB\n", ButtonBPin)
 
 	// Set up 'leds' as outputs
-	oshi.statusLed, e = hwio.GetPinWithMode(statusLedPin, hwio.OUTPUT)
+	oshi.statusLed, e = hwio.GetPinWithMode(StatusLedPin, hwio.OUTPUT)
 	if e != nil {
 		panic(e)
 	}
-	log.Printf("Set pin %s as statusLed\n", statusLedPin)
+	log.Printf("Set pin %s as statusLed\n", StatusLedPin)
 
-	oshi.actionLed, e = hwio.GetPinWithMode(actionLedPin, hwio.OUTPUT)
+	oshi.actionLed, e = hwio.GetPinWithMode(ActionLedPin, hwio.OUTPUT)
 	if e != nil {
 		panic(e)
 	}
-	log.Printf("Set pin %s as actionLed\n", actionLedPin)
+	log.Printf("Set pin %s as actionLed\n", ActionLedPin)
 }
 
-func readTracker(name string, trackerPin hwio.Pin) {
+func readTracker(name string, TrackerPin hwio.Pin) {
 
 	oldValue := 0            //value readed from tracker, initially set to 0, because the tracker was innactive
 	timeAction := time.Now() // time of the action detected
 
 	// loop
-	for theAcq.getState() != stateSTOPPED {
+	for theContext.State != STOPPED {
 		// Read the tracker value
-		value, e := hwio.DigitalRead(trackerPin)
+		value, e := hwio.DigitalRead(TrackerPin)
 		if e != nil {
 			panic(e)
 		}
@@ -448,12 +468,10 @@ func readTracker(name string, trackerPin hwio.Pin) {
 		timeAction = time.Now() // time at this point
 		// Did value change?
 		if (value == 1) && (value != oldValue) {
-			if theAcq.getState() != statePAUSED {
-				dataString := fmt.Sprintf("[%s], %d,\n",
-					name, int64(timeAction.Sub(theAcq.getTime0())/time.Microsecond))
-				log.Println(dataString)
-				theAcq.outputFile.WriteString(dataString)
-			}
+			dataString := fmt.Sprintf("[%s], %d,\n",
+				name, int64(timeAction.Sub(theContext.getTime0())/time.Microsecond))
+			log.Println(dataString)
+			theContext.DataFile.WriteString(dataString)
 
 			// Write the value to the led indicating somewhat is happened
 			if value == 1 {
@@ -543,7 +561,7 @@ func (cntxt *Context) readFromArduino() {
 
 		//compound the dataline and write to the output
 		//receptionTime= time.Now() // Alternative: time at this point
-		dataString := fmt.Sprintf("[%s], %d, %d, %d, %d, %f, %f, %f, %f, %f, %f\n", "Ard", int64(receptionTime.Sub(theAcq.getTime0())/time.Microsecond), theSensorData.sincroMicroSeconds, theSensorData.sensorMicroSeconds, theSensorData.distance, theSensorData.accX, theSensorData.accY, theSensorData.accZ, theSensorData.gyrX, theSensorData.gyrY, theSensorData.gyrZ)
+		dataString := fmt.Sprintf("[%s], %d, %d, %d, %d, %f, %f, %f, %f, %f, %f\n", "Ard", int64(receptionTime.Sub(cntxt.Time0)/time.Microsecond), theSensorData.sincroMicroSeconds, theSensorData.sensorMicroSeconds, theSensorData.distance, theSensorData.accX, theSensorData.accY, theSensorData.accZ, theSensorData.gyrX, theSensorData.gyrY, theSensorData.gyrZ)
 
 		log.Println(dataString)
 		cntxt.DataFile.WriteString(dataString)
@@ -717,44 +735,44 @@ func RemoveContents(dir string) error {
 //Home of the website
 func Home(w http.ResponseWriter, req *http.Request) {
 	fmt.Println(">>>", req.URL)
-	fmt.Println(">>>", context)
+	fmt.Println(">>>", theContext)
 
-	context.Title = "Welcome!"
-	render(w, "index", context)
+	theContext.Title = titleWelcome
+	render(w, "index", theContext)
 }
 
 //ThePlatform describes the system
 func ThePlatform(w http.ResponseWriter, req *http.Request) {
 	fmt.Println(">>>", req.URL)
-	fmt.Println(">>>", context)
+	fmt.Println(">>>", theContext)
 
-	context.Message = "Description of the Platform"
-	context.AlertLevel = INFO
-	context.Title = "The Platform"
-	render(w, "thePlatform", context)
+	theContext.Message = "Description of the Platform"
+	theContext.AlertLevel = INFO
+	theContext.Title = titleThePlatform
+	render(w, "thePlatform", theContext)
 }
 
 //Init set the platform in a initial state
 func Init(w http.ResponseWriter, req *http.Request) {
 	fmt.Println(">>>", req.URL)
-	fmt.Println(">>>", context)
+	fmt.Println(">>>", theContext)
 
-	switch context.State {
+	switch theContext.State {
 	case INIT, CONFIGURED, STOPPED:
 		// correct states
 		if req.Method == "GET" {
-			context.Message = "Warning! You are erasing the configuration, the datafiles and restoring the platform to it's initial state."
-			context.AlertLevel = DANGER
-			context.Title = "Initialization"
-			render(w, "init", context)
+			theContext.Message = "Warning! You are erasing the configuration, the datafiles and restoring the platform to it's initial state."
+			theContext.AlertLevel = DANGER
+			theContext.Title = titleInit
+			render(w, "init", theContext)
 		} else { // POST
 			fmt.Println("POST")
 			req.ParseForm()
 			fmt.Println(req.Form)
 			if req.Form.Get("initializate") == "YES" {
 				//if YES, init the platform
-				context.State = INIT
-				context.ConfigurationName = ""
+				theContext.State = INIT
+				theContext.ConfigurationName = ""
 				//erase datafiles
 				dataDirectory := filepath.Join(StaticRoot, DataFilePath)
 				fmt.Println("DELETING ", dataDirectory)
@@ -764,23 +782,23 @@ func Init(w http.ResponseWriter, req *http.Request) {
 				}
 
 				//message of initial state
-				context.Message = "The system is now in the initial state. Now you must define a new configuration berofe run an experiment."
-				context.AlertLevel = SUCCESS
+				theContext.Message = "The system is now in the initial state. Now you must define a new configuration berofe run an experiment."
+				theContext.AlertLevel = SUCCESS
 			} else {
 				//message of initial state
-				context.Message = "The system initialization is canceled. The current configuration is active."
-				context.AlertLevel = WARNING
+				theContext.Message = "The system initialization is canceled. The current configuration is active."
+				theContext.AlertLevel = WARNING
 			}
 			//initiated or not, shows the experiment page
-			context.Title = "Experiment"
-			render(w, "experiment", context)
+			theContext.Title = titleExperiment
+			render(w, "experiment", theContext)
 		}
 	case RUNNING:
 		// wrong state
-		context.Message = "System is running! It MUST be stopped before erase the configuration and set the initial state."
-		context.AlertLevel = DANGER
-		context.Title = "Run"
-		render(w, "run", context)
+		theContext.Message = "System is running! It MUST be stopped before erase the configuration and set the initial state."
+		theContext.AlertLevel = DANGER
+		theContext.Title = titleRun
+		render(w, "run", theContext)
 	}
 
 }
@@ -788,119 +806,119 @@ func Init(w http.ResponseWriter, req *http.Request) {
 //Experiment allows to access to the experiments
 func Experiment(w http.ResponseWriter, req *http.Request) {
 	fmt.Println(">>>", req.URL)
-	fmt.Println(">>>", context)
+	fmt.Println(">>>", theContext)
 
-	switch context.State {
+	switch theContext.State {
 	case INIT, CONFIGURED, STOPPED:
 		//correct cases, shows the experiment page to config,test and run it
-		context.Message = "Let's make some experiments"
-		context.AlertLevel = INFO
-		context.Title = "Experiment"
-		render(w, "experiment", context)
+		theContext.Message = "Let's make some experiments"
+		theContext.AlertLevel = INFO
+		theContext.Title = titleExperiment
+		render(w, "experiment", theContext)
 	case RUNNING:
 		//wrong case, it must be STOPPED before
-		context.Message = "System is running! It MUST be stopped before a new configuration done."
-		context.AlertLevel = DANGER
-		context.Title = "Run"
-		render(w, "run", context)
+		theContext.Message = "System is running! It MUST be stopped before a new configuration done."
+		theContext.AlertLevel = DANGER
+		theContext.Title = titleRun
+		render(w, "run", theContext)
 	}
 }
 
 //Config allows to configure the sensors
 func Config(w http.ResponseWriter, req *http.Request) {
 	fmt.Println(">>>", req.URL)
-	fmt.Println(">>>", context)
+	fmt.Println(">>>", theContext)
 
-	switch context.State {
+	switch theContext.State {
 	case INIT, CONFIGURED, STOPPED:
 		//correct states, do the config process
 		if req.Method == "GET" {
-			context.Message = "Activate/Deactivate the sensors."
-			context.AlertLevel = INFO
-			context.Title = "Configuration of Sensor Platform"
-			render(w, "config", context)
+			theContext.Message = "Activate/Deactivate the sensors."
+			theContext.AlertLevel = INFO
+			theContext.Title = titleConfig
+			render(w, "config", theContext)
 		} else { // POST
 			fmt.Println("POST")
 			req.ParseForm()
 			// logic part of login
 			//validation phase will be here
 			//if valid, put the form data into the context struct
-			context.ConfigurationName = req.Form.Get("ConfigurationName")
-			if req.Form.Get("SetTrackerA") == "on" {
-				context.SetTrackerA = ON
+			theContext.ConfigurationName = req.Form.Get("ConfigurationName")
+			if req.Form.Get("SetTrackerA") == SensorStateOn {
+				theContext.SetTrackerA = ON
 			} else {
-				context.SetTrackerA = OFF
+				theContext.SetTrackerA = OFF
 			}
-			if req.Form.Get("SetTrackerB") == "on" {
-				context.SetTrackerB = ON
+			if req.Form.Get("SetTrackerB") == SensorStateOn {
+				theContext.SetTrackerB = ON
 			} else {
-				context.SetTrackerB = OFF
+				theContext.SetTrackerB = OFF
 			}
-			if req.Form.Get("SetTrackerC") == "on" {
-				context.SetTrackerC = ON
+			if req.Form.Get("SetTrackerC") == SensorStateOn {
+				theContext.SetTrackerC = ON
 			} else {
-				context.SetTrackerC = OFF
+				theContext.SetTrackerC = OFF
 			}
-			if req.Form.Get("SetTrackerD") == "on" {
-				context.SetTrackerD = ON
+			if req.Form.Get("SetTrackerD") == SensorStateOn {
+				theContext.SetTrackerD = ON
 			} else {
-				context.SetTrackerD = OFF
+				theContext.SetTrackerD = OFF
 			}
-			if req.Form.Get("SetTrackerM") == "on" {
-				context.SetTrackerM = ON
+			if req.Form.Get("SetTrackerM") == SensorStateOn {
+				theContext.SetTrackerM = ON
 			} else {
-				context.SetTrackerM = OFF
+				theContext.SetTrackerM = OFF
 			}
-			if req.Form.Get("SetDistance") == "on" {
-				context.SetDistance = ON
+			if req.Form.Get("SetDistance") == SensorStateOn {
+				theContext.SetDistance = ON
 			} else {
-				context.SetDistance = OFF
+				theContext.SetDistance = OFF
 			}
-			if req.Form.Get("SetAccGyro") == "on" {
-				context.SetAccGyro = ON
+			if req.Form.Get("SetAccGyro") == SensorStateOn {
+				theContext.SetAccGyro = ON
 			} else {
-				context.SetAccGyro = OFF
+				theContext.SetAccGyro = OFF
 			}
 			//prepare the context
-			context.Message = "Configuration done! Now the system can be tested or runned the experiment"
-			context.AlertLevel = SUCCESS
-			context.State = CONFIGURED
-			context.Title = "Experiment"
+			theContext.Message = "Configuration done! Now the system can be tested or runned the experiment"
+			theContext.AlertLevel = SUCCESS
+			theContext.State = CONFIGURED
+			theContext.Title = titleExperiment
 			//log
 			fmt.Println(req.Form)
-			fmt.Println("Contex:", context)
+			fmt.Println("Contex:", theContext)
 			//once processed the form, reditect to the index page
 
-			//render(w, "experiment", context)
+			//render(w, "experiment", theContext)
 			http.Redirect(w, req, "/experiment/", http.StatusFound)
 		}
 	case RUNNING:
 		// only put a message, but don't touch the running process
-		context.Message = "System is running! It MUST be stopped before a new configuration done."
-		context.AlertLevel = DANGER
-		context.Title = "Run"
-		render(w, "run", context)
+		theContext.Message = "System is running! It MUST be stopped before a new configuration done."
+		theContext.AlertLevel = DANGER
+		theContext.Title = titleRun
+		render(w, "run", theContext)
 	}
 }
 
 //Test allows to test the sensors
 func Test(w http.ResponseWriter, req *http.Request) {
 	fmt.Println(">>>", req.URL)
-	fmt.Println(">>>", context)
+	fmt.Println(">>>", theContext)
 
-	switch context.State {
+	switch theContext.State {
 	case INIT:
 		//The system must be configured before
-		context.Message = "The system must be configured before you could test it!"
-		context.AlertLevel = WARNING
-		context.Title = "Configure"
-		render(w, "configure", context)
+		theContext.Message = "The system must be configured before you could test it!"
+		theContext.AlertLevel = WARNING
+		theContext.Title = titleConfig
+		render(w, "configure", theContext)
 	case RUNNING:
 		//wrong state, the system must be stopped before
-		context.Message = "Warning! You must stop the system before test the system."
-		context.AlertLevel = DANGER
-		context.Title = "Run"
-		render(w, "run", context)
+		theContext.Message = "Warning! You must stop the system before test the system."
+		theContext.AlertLevel = DANGER
+		theContext.Title = titleRun
+		render(w, "run", theContext)
 	case CONFIGURED, STOPPED:
 		//correct state, let's test the system, and then to experiment page
 
@@ -911,88 +929,88 @@ func Test(w http.ResponseWriter, req *http.Request) {
 		//put here the test code
 
 		// this test is a naive one, only for demonstration purpose
-		if context.SetTrackerA {
-			context.StateOfTrackerA = READY
+		if theContext.SetTrackerA {
+			theContext.StateOfTrackerA = READY
 		} else {
-			context.StateOfTrackerA = DISSABLED
+			theContext.StateOfTrackerA = DISSABLED
 		}
-		if context.SetTrackerB {
-			context.StateOfTrackerB = READY
+		if theContext.SetTrackerB {
+			theContext.StateOfTrackerB = READY
 		} else {
-			context.StateOfTrackerB = DISSABLED
+			theContext.StateOfTrackerB = DISSABLED
 		}
-		if context.SetTrackerC {
-			context.StateOfTrackerC = READY
+		if theContext.SetTrackerC {
+			theContext.StateOfTrackerC = READY
 		} else {
-			context.StateOfTrackerC = DISSABLED
+			theContext.StateOfTrackerC = DISSABLED
 		}
-		if context.SetTrackerD {
-			context.StateOfTrackerD = READY
+		if theContext.SetTrackerD {
+			theContext.StateOfTrackerD = READY
 		} else {
-			context.StateOfTrackerD = DISSABLED
+			theContext.StateOfTrackerD = DISSABLED
 		}
-		if context.SetTrackerM {
-			context.StateOfTrackerM = READY
+		if theContext.SetTrackerM {
+			theContext.StateOfTrackerM = READY
 		} else {
-			context.StateOfTrackerM = DISSABLED
+			theContext.StateOfTrackerM = DISSABLED
 		}
-		if context.SetDistance {
-			context.StateOfDistance = READY
+		if theContext.SetDistance {
+			theContext.StateOfDistance = READY
 		} else {
-			context.StateOfDistance = DISSABLED
+			theContext.StateOfDistance = DISSABLED
 		}
-		if context.SetAccGyro {
-			context.StateOfAccGyro = READY
+		if theContext.SetAccGyro {
+			theContext.StateOfAccGyro = READY
 		} else {
-			context.StateOfAccGyro = DISSABLED
+			theContext.StateOfAccGyro = DISSABLED
 		}
 		// test done, shows the result
 
-		context.Title = "Test the Sensor Platform"
-		context.Message = "System configured and Tested. Ready to run."
-		context.AlertLevel = SUCCESS
-		fmt.Println(">>>", context)
-		render(w, "test", context)
+		theContext.Title = titleTest
+		theContext.Message = "System configured and Tested. Ready to run."
+		theContext.AlertLevel = SUCCESS
+		fmt.Println(">>>", theContext)
+		render(w, "test", theContext)
 	}
 }
 
 //Run allows to run the experiments
 func Run(w http.ResponseWriter, req *http.Request) {
 	fmt.Println(">>>", req.URL)
-	fmt.Println(">>>", context)
+	fmt.Println(">>>", theContext)
 
-	switch context.State {
+	switch theContext.State {
 	case INIT:
 		//wrong state, show experiment page
-		context.Message = "Warning! You must configure the system before run the experiment."
-		context.AlertLevel = DANGER
-		context.Title = "experiment"
+		theContext.Message = "Warning! You must configure the system before run the experiment."
+		theContext.AlertLevel = DANGER
+		theContext.Title = titleExperiment
 		//http.Redirect(w, req, "/experiment/", http.StatusFound)
-		render(w, "experiment", context)
+		render(w, "experiment", theContext)
 	case CONFIGURED, STOPPED:
 		//correct states, do the running process
 
-		dataFileName := filepath.Join(StaticRoot, DataFilePath, context.ConfigurationName+DataExtension)
+		dataFileName := filepath.Join(StaticRoot, DataFilePath, theContext.ConfigurationName+DataFileExtension)
 		//detect if file exists
 		_, err := os.Stat(dataFileName)
 		//create datafile is not exists
 		if os.IsNotExist(err) {
 			//create file to write
 			fmt.Println("Creating ", dataFileName)
-			context.DataFile, err = os.Create(dataFileName)
+			theContext.DataFile, err = os.Create(dataFileName)
 			if err != nil {
 				fmt.Println(err.Error())
 			}
-			statusLine := fmt.Sprintf("### %v Data Acquisition: %s \n\n", time.Now(), context.ConfigurationName)
-			context.DataFile.WriteString(statusLine)
+			statusLine := fmt.Sprintf("### %v Data Acquisition: %s \n\n", time.Now(), theContext.ConfigurationName)
+			theContext.DataFile.WriteString(statusLine)
 			formatLine := fmt.Sprintf("### [Ard], localTime(us), sincroTime(us), sensorTime(us), distance(mm), accX(g), accY(g), accZ(g), gyrX(gr/s), gyrY(gr/s), gyrZ(gr/s) \n\n")
-			context.DataFile.WriteString(formatLine)
+			theContext.DataFile.WriteString(formatLine)
 			// sets the new time0 only with a new scenery
-			context.setTime0()
+			theContext.setTime0()
 		} else {
 			//open fle to append
 			fmt.Println("Openning ", dataFileName)
-			context.DataFile, err = os.OpenFile(dataFileName, os.O_RDWR|os.O_APPEND, 0644)
+			theContext.DataFile, err = os.OpenFile(dataFileName, os.O_RDWR|os.O_APPEND, 0644)
 			if err != nil {
 				fmt.Println(err.Error())
 			}
@@ -1010,7 +1028,7 @@ func Run(w http.ResponseWriter, req *http.Request) {
 		log.Printf("There are %v goroutines", runtime.NumGoroutine())
 		log.Printf("Launching the Gourutines")
 
-		go theAcq.readFromArduino()
+		go theContext.readFromArduino()
 		log.Println("Started Arduino")
 		go readTracker("A", theOshi.trackerA)
 		log.Println("Started Tracker A")
@@ -1030,32 +1048,32 @@ func Run(w http.ResponseWriter, req *http.Request) {
 		//}
 		//defer close the file to STOP
 
-		context.Message = "System running gathering data from sensors."
-		context.AlertLevel = SUCCESS
-		context.Title = "Run"
-		context.State = RUNNING
-		render(w, "run", context)
+		theContext.Message = "System running gathering data from sensors."
+		theContext.AlertLevel = SUCCESS
+		theContext.Title = titleRun
+		theContext.State = RUNNING
+		render(w, "run", theContext)
 	case RUNNING:
 		// we already are in this State
 		// only put a message, but don't touch the running process
-		context.Message = "System is ALREADY running!"
-		context.AlertLevel = WARNING
-		context.Title = "Run"
-		render(w, "run", context)
+		theContext.Message = "System is ALREADY running!"
+		theContext.AlertLevel = WARNING
+		theContext.Title = titleRun
+		render(w, "run", theContext)
 	}
 }
 
 //Stop allows to stop the experiments
 func Stop(w http.ResponseWriter, req *http.Request) {
 	fmt.Println(">>>", req.URL)
-	fmt.Println(">>>", context)
+	fmt.Println(">>>", theContext)
 
-	switch context.State {
+	switch theContext.State {
 	case INIT, CONFIGURED:
-		context.Message = "Warning! You must configure the system and run the experiment before stop it."
-		context.AlertLevel = DANGER
-		context.Title = "Experiment"
-		render(w, "experiment", context)
+		theContext.Message = "Warning! You must configure the system and run the experiment before stop it."
+		theContext.AlertLevel = DANGER
+		theContext.Title = titleExperiment
+		render(w, "experiment", theContext)
 	case RUNNING:
 		//correct state, do the stop process
 		// stop process instruction here!
@@ -1066,59 +1084,59 @@ func Stop(w http.ResponseWriter, req *http.Request) {
 		//hwio.CloseAll()
 
 		//close the file
-		err := context.DataFile.Sync()
+		err := theContext.DataFile.Sync()
 		if err != nil {
 			fmt.Println(err.Error())
 		}
-		context.DataFile.Close()
+		theContext.DataFile.Close()
 
-		context.Title = "Stop"
-		context.State = STOPPED
-		context.Message = "System stopped. Now you can donwload the data to your permanent storage"
-		context.AlertLevel = SUCCESS
-		render(w, "stop", context)
+		theContext.Title = titleStop
+		theContext.State = STOPPED
+		theContext.Message = "System stopped. Now you can donwload the data to your permanent storage"
+		theContext.AlertLevel = SUCCESS
+		render(w, "stop", theContext)
 
 	case STOPPED:
 		// we already are in this State
 		// only put a message, but don't touch the process
-		context.Message = "System is ALREADY stooped!"
-		context.AlertLevel = WARNING
-		context.Title = "Stop"
-		render(w, "experiment", context)
+		theContext.Message = "System is ALREADY stooped!"
+		theContext.AlertLevel = WARNING
+		theContext.Title = titleStop
+		render(w, "experiment", theContext)
 	}
 }
 
 //Collect the data gathered in the experiments
 func Collect(w http.ResponseWriter, req *http.Request) {
 	fmt.Println(">>>", req.URL)
-	fmt.Println(">>>", context)
+	fmt.Println(">>>", theContext)
 
-	switch context.State {
+	switch theContext.State {
 	case INIT, CONFIGURED, STOPPED:
 		//read the data directory and offers the files to be downloaded
-		context.DataFiles, _ = filepath.Glob(filepath.Join(StaticRoot, DataFilePath, "*"+DataExtension))
+		theContext.DataFiles, _ = filepath.Glob(filepath.Join(StaticRoot, DataFilePath, "*"+DataFileExtension))
 		//fmt.Println(">>>> " + filepath.Join(StaticRoot, DataFilePath, "*"+DataExtension))
 		//let only the file name, eliminate the path
-		for i, f := range context.DataFiles {
-			context.DataFiles[i] = path.Base(f)
+		for i, f := range theContext.DataFiles {
+			theContext.DataFiles[i] = path.Base(f)
 		}
 
-		fmt.Println(context.DataFiles)
+		fmt.Println(theContext.DataFiles)
 
-		context.Title = "Collect Data"
-		if len(context.DataFiles) == 0 {
-			context.Message = "Sorry! There are not files to donwload stored in the system."
-			context.AlertLevel = WARNING
+		theContext.Title = titleCollect
+		if len(theContext.DataFiles) == 0 {
+			theContext.Message = "Sorry! There are not files to donwload stored in the system."
+			theContext.AlertLevel = WARNING
 		} else {
-			context.Message = "You can download the data stored in the system."
-			context.AlertLevel = INFO
+			theContext.Message = "You can download the data stored in the system."
+			theContext.AlertLevel = INFO
 		}
-		render(w, "collect", context)
+		render(w, "collect", theContext)
 	case RUNNING:
-		context.Message = "You can't download data is while the system is running. You must stop the system before."
-		context.AlertLevel = WARNING
-		context.Title = "Run"
-		render(w, "run", context)
+		theContext.Message = "You can't download data is while the system is running. You must stop the system before."
+		theContext.AlertLevel = WARNING
+		theContext.Title = titleRun
+		render(w, "run", theContext)
 	}
 
 }
@@ -1126,25 +1144,25 @@ func Collect(w http.ResponseWriter, req *http.Request) {
 //About shows the page with info
 func About(w http.ResponseWriter, req *http.Request) {
 	fmt.Println(">>>", req.URL)
-	fmt.Println(">>>", context)
+	fmt.Println(">>>", theContext)
 
-	context.Title = "About"
-	render(w, "about", context)
+	theContext.Title = titleAbout
+	render(w, "about", theContext)
 }
 
 //Help shows information about the tool
 func Help(w http.ResponseWriter, req *http.Request) {
 	fmt.Println(">>>", req.URL)
-	fmt.Println(">>>", context)
+	fmt.Println(">>>", theContext)
 
-	context.Title = "Help"
-	render(w, "help", context)
+	theContext.Title = titleHelp
+	render(w, "help", theContext)
 }
 
 // render
-func render(w http.ResponseWriter, tmpl string, context Context) {
-	fmt.Println("[render]>>>", context)
-	context.Static = StaticURL
+func render(w http.ResponseWriter, tmpl string, cntxt Context) {
+	fmt.Println("[render]>>>", cntxt)
+	cntxt.Static = StaticURL
 	//list of templates, put here all the templates needed
 	tmplList := []string{"templates/base.html",
 		fmt.Sprintf("templates/message.html"),
@@ -1153,7 +1171,7 @@ func render(w http.ResponseWriter, tmpl string, context Context) {
 	if err != nil {
 		log.Print("template parsing error: ", err)
 	}
-	err = t.Execute(w, context)
+	err = t.Execute(w, cntxt)
 	if err != nil {
 		log.Print("template executing error: ", err)
 	}
@@ -1175,8 +1193,8 @@ func StaticHandler(w http.ResponseWriter, req *http.Request) {
 
 func main() {
 	//set the initial state
-	context.State = INIT
-	theAcq.initiate()
+	theContext.State = INIT
+	theContext.initiate()
 	theOshi.initiate()
 
 	http.HandleFunc("/", Home)
@@ -1198,6 +1216,6 @@ func main() {
 	}
 
 	// close the GPIO pins
-	defer theAcq.serialPort.Close()
+	defer theContext.SerialPort.Close()
 	hwio.CloseAll()
 }
