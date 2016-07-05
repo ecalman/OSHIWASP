@@ -20,6 +20,8 @@ import (
 	"github.com/tarm/serial"
 )
 
+//comm
+
 //sensors configuration
 const (
 
