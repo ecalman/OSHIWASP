@@ -32,7 +32,7 @@ const (
 	//StatusLedPin pin which shows the status
 	StatusLedPin = "gpio7" // green
 	//ActionLedPin pin which shows the action of the system
-	ActionLedPin = "gpio8" // yellow
+	ActionLedPin = "gpio8" // yellow or red
 
 	//ButtonAPin pin
 	ButtonAPin = "gpio24" // start
@@ -282,28 +282,33 @@ var (
 //AAAAAAAAAAAAAA
 
 func (cntxt *Context) connectArduinoSerialBT() {
+	var err error
 	// config the comm port for serial via BT
 	commPort := &serial.Config{Name: CommDevName, Baud: Bauds}
 	// open the serial comm with the arduino via BT
-	cntxt.SerialPort, _ = serial.OpenPort(commPort)
+	cntxt.SerialPort, err = serial.OpenPort(commPort)
+	if err != nil {
+		log.Printf("error opening the serial port with Arduino")
+		log.Fatal(err)
+	}
 	//defer acq.serialPort.Close()
 	log.Printf("Open serial device %s", CommDevName)
 }
 
-func (cntxt *Context) setArduinoStateON() {
+func setArduinoStateON() {
 	// activate the readdings in Arduino sending 'ON'
 	log.Printf("before write on")
-	_, err := cntxt.SerialPort.Write([]byte("n"))
+	_, err := theContext.SerialPort.Write([]byte("n"))
 	log.Printf("after write on")
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func (cntxt *Context) setArduinoStateOFF() {
+func setArduinoStateOFF() {
 	// deactivate the readdings in Artudino sending 'OFF'
 	log.Printf("before write off")
-	_, err := cntxt.SerialPort.Write([]byte("f"))
+	_, err := theContext.SerialPort.Write([]byte("f"))
 	log.Printf("after write off")
 	if err != nil {
 		log.Printf("error!! after write off")
@@ -400,6 +405,7 @@ func (cntxt *Context) initiate() {
 	cntxt.connectArduinoSerialBT()
 	log.Printf("Arduino connected!")
 	//cntxt.setStateNEW()
+	cntxt.State = INIT
 }
 
 //OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
@@ -499,19 +505,22 @@ func (cntxt *Context) readFromArduino() {
 	// operate with the gobal variables theSensorData and theSensorDataInBytes; more speed?
 
 	// don't use the first readding ??  I'm not sure about that
+	log.Println("readFromArduino: before newreader")
 	reader := bufio.NewReader(cntxt.SerialPort)
 	// find the begging of an stream of data from the sensors
+	log.Println("readFromArduino: before readBytes")
 	register, err := reader.ReadBytes('\x24')
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 	//log.Println(register)
 	//log.Printf(">>>>>>>>>>>>>>")
 
 	// loop
-	for cntxt.State != STOPPED {
+	for cntxt.State == RUNNING {
 		// Read the serial and decode
 
+		log.Println("readding from ardi")
 		register = nil
 		reg = nil
 
@@ -890,12 +899,14 @@ func Config(w http.ResponseWriter, req *http.Request) {
 			}
 			//prepare the context
 			theContext.Message = "Configuration done! Now the system can be tested or runned the experiment"
+			theContext.Title = titleExperiment
 			theContext.AlertLevel = SUCCESS
 			theContext.State = CONFIGURED
-			theContext.Title = titleExperiment
+			//setArduinoStateON() //initiate Arduino readding sensors and transfer via BT
+
 			//log
-			fmt.Println(req.Form)
-			fmt.Println("Contex:", theContext)
+			log.Println(req.Form)
+			log.Println("Contex:", theContext)
 			//once processed the form, reditect to the index page
 
 			//render(w, "experiment", theContext)
@@ -1032,6 +1043,9 @@ func Run(w http.ResponseWriter, req *http.Request) {
 		hwio.DigitalWrite(theOshi.statusLed, hwio.HIGH)
 		log.Println("Beginning.....")
 
+		//activate arduino
+		setArduinoStateON()
+
 		// launch the trackers
 
 		log.Printf("There are %v goroutines", runtime.NumGoroutine())
@@ -1099,9 +1113,10 @@ func Stop(w http.ResponseWriter, req *http.Request) {
 		}
 		theContext.DataFile.Close()
 
+		theContext.Message = "System stopped. Now you can donwload the data to your permanent storage"
 		theContext.Title = titleStop
 		theContext.State = STOPPED
-		theContext.Message = "System stopped. Now you can donwload the data to your permanent storage"
+		setArduinoStateOFF() //stop the arduion from read sensor and sending data via BT
 		theContext.AlertLevel = SUCCESS
 		render(w, "stop", theContext)
 
@@ -1202,7 +1217,6 @@ func StaticHandler(w http.ResponseWriter, req *http.Request) {
 
 func main() {
 	//set the initial state
-	theContext.State = INIT
 	theContext.initiate()
 	theOshi.initiate()
 
