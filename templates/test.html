@@ -79,12 +79,21 @@
       <span class="glyphicon glyphicon-remove-circle"></span>
       {{end}}
    </li>
-   <li class="list-group-item">Acc &amp; Gyro:
-      {{if eq .StateOfAccGyro 0}}
+   <li class="list-group-item">Accelerometer:
+      {{if eq .StateOfAccelerometer 0}}
       <span class="glyphicon glyphicon-ban-circle"></span>
-      {{else if eq .StateOfAccGyro 1}}
+      {{else if eq .StateOfAccelerometer 1}}
       <span class="glyphicon glyphicon-ok-circle"></span>
-      {{else if eq .StateOfAccGyro 2}}
+      {{else if eq .StateOfAccelerometer 2}}
+      <span class="glyphicon glyphicon-remove-circle"></span>
+      {{end}}
+   </li>
+   <li class="list-group-item">Gyroscope:
+      {{if eq .StateOfGyroscope 0}}
+      <span class="glyphicon glyphicon-ban-circle"></span>
+      {{else if eq .StateOfGyroscope 1}}
+      <span class="glyphicon glyphicon-ok-circle"></span>
+      {{else if eq .StateOfGyroscope 2}}
       <span class="glyphicon glyphicon-remove-circle"></span>
       {{end}}
    </li>
