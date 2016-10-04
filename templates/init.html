@@ -5,17 +5,29 @@
 {{ template "message" . }}
 <form action="/init/" class="form-horizontal" method="POST">
    <div class="form-group">
+      {{if eq .Lang 0}}
       <label for="question" class="control-label col-sm-3">Set the init state?</label>
+      {{else if eq .Lang 1}}
+      <label for="question" class="control-label col-sm-3">Volver al estado inicial?</label>
+      {{end}}
       <div class="col-sm-4">
          <select class="form-control" id="setInitState" name="initializate">
             <option value="NO">NO</option>
+            {{if eq .Lang 0}}
             <option value="YES">YES</option>
+            {{else if eq .Lang 1}}
+            <option value="YES">SI</option>
+            {{end}}
          </select>
       </div>
    </div>
    <div class="form-group">
       <div class="col-sm-offset-3 col-sm-4">
+         {{if eq .Lang 0}}
          <input type="submit" class="btn btn-primary" value="Init">
+         {{else if eq .Lang 1}}
+         <input type="submit" class="btn btn-primary" value="Reiniciar">
+         {{end}}
          <!--input type="reset" class="btn btn-default" value="Reset"-->
       </div>
    </div>

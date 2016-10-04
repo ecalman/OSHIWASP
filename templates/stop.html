@@ -2,12 +2,15 @@
 <div class="page-header">
    <h2>{{ .Title }}</h2>
 </div>
-
 {{ template "message" . }}
 
-<ol>
-   <li><a href="/collect/">Collect the data of the last experiment.</a></li>
-   <li><a href="/run/">Run a new data acquisition with the same configuration.</a></li>
-</ol>
-
+  {{if eq .Lang 0}}
+  <ol>
+     <li><a href="/collect/">Download data acquired in the experiment.</a></li>
+  </ol>
+  {{else if eq .Lang 1}}
+  <ol>
+     <li><a href="/collect/">Descargar los datos adquiridos en el experimento.</a></li>
+  </ol>
+  {{end}}
 {{ end }}

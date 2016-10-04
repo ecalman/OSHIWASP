@@ -1,5 +1,9 @@
 <!DOCTYPE html>
+{{ if eq .Lang 0 }}
 <html lang="en">
+{{else if eq .Lang 1}}
+<html lang="es">
+{{end}}
 <head>
    <meta charset="utf-8">
    <title>OSHIWASP</title>
@@ -23,52 +27,121 @@
          </div>
          <div class="collapse navbar-collapse" id="menu">
             <ul class="nav navbar-nav">
-               <li><a href="/thePlatform/">The Platform</a></li>
+               <!--li><a href="/thePlatform/">The Platform</a></li-->
                <li class="dropdown">
-                  <a href="/experiment/" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Experiment <span class="caret"></span></a>
+               {{ if eq .Lang 0 }}
+               <a href="/experiment/" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Experiment<span class="caret"></span></a>
+               {{else if eq .Lang 1}}
+               <a href="/experiment/" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Experimento<span class="caret"></span></a>
+               {{end}}
                   <ul class="dropdown-menu">
+                     {{if eq .Lang 0 }}
                      <li><a href="/init/">Init</a></li>
+                     {{else if eq .Lang 1}}
+                     <li><a href="/init/">Inicializar</a></li>
+                     {{end}}
                      <li role="separator" class="divider"></li>
+                     {{if eq .Lang 0 }}
                      <li><a href="/config/">Config</a></li>
+                     {{else if eq .Lang 1}}
+                     <li><a href="/config/">Configurar</a></li>
+                     {{end}}
+                     {{ if eq .Lang 0 }}
                      <li><a href="/test/">Test</a></li>
+                     {{else if eq .Lang 1}}
+                     <li><a href="/test/">Comprobar</a></li>
+                     {{end}}
                      <li role="separator" class="divider"></li>
+                     {{ if eq .Lang 0 }}
                      <li><a href="/run/">Run</a></li>
-                     <li><a href="/stop/">Stop</a></li>
+                     {{else if eq .Lang 1}}
+                     <li><a href="/run/">Ejecutar</a></li>
+                     {{end}}
+                     {{ if eq .Lang 0 }} 
+                     <li><a href="/stop/">Stop</a></li> 
+                     {{else if eq .Lang 1}}
+                     <li><a href="/stop/">Parar</a></li> 
+                     {{end}}
                   </ul>
                </li>
+               {{if eq .Lang 0}}
                <li><a href="/collect/">Collect</a></li>
+               {{else if eq .Lang 1}}
+               <li><a href="/collect/">Resultados</a></li>
+               {{end}}
+               {{if eq .Lang 0}}
+               <li><a href="/poweroff/">PowerOff</a></li>
+               {{else if eq .Lang 1}}
+               <li><a href="/poweroff/">Apagar</a></li>
+               {{end}}
+               <!--
+               {{if eq .Lang 0}}
                <li><a href="/about/">About</a></li>
+               {{else}}
+               <li><a href="/about/">About</a></li>
+               {{end}}
+               -->
+               {{if eq .Lang 0}}
                <li><a href="/help/">Help</a></li>
-            </ul>
+               {{else if eq .Lang 1}}
+               <li><a href="/help/">Ayuda</a></li>
+               {{end}}
+           </ul>
+            <ul class="nav navbar-nav navbat-right">
+               <li class="nav-item navbar-right"> 
+               {{if eq .Lang 0}}
+               <a href="/changeLang/">Español</a>
+               {{else if eq .Lang 1}}
+               <a href="/changeLang/">English</a>
+               {{end}}
+               </li> 
+           </ul>
          </div><!-- /.navbar-collapse -->
       </div><!-- /.container-fluid -->
    </nav>
 
    <div class="container">
+             {{ if ge .State 0 }}
       <div class="panel panel-default">
-         <div class="panel-heading">{{ .ConfigurationName }}</div>
+          {{if eq .Lang 0}}
+          <div class="panel-heading">{{if ne .ConfigurationName ""}}Configuration: {{ .ConfigurationName }}{{end}}</div>
+          {{else if eq .Lang 1}}
+          <div class="panel-heading">{{if ne .ConfigurationName ""}} Configuración: {{ .ConfigurationName }}{{end}}</div>
+         {{end}}
          <div class="panel-body">
             <div class="progress">
                {{ if ge .State 0 }}
-               <div class="progress-bar progress-bar-info" role="progressbar" style="width:33.3%"
-               >Init</div>
+               {{ if eq .Lang 0 }}
+               <div class="progress-bar progress-bar-info" role="progressbar" style="width:33.3%" >Init</div>
+               {{ else if eq .Lang 1}}
+               <div class="progress-bar progress-bar-info" role="progressbar" style="width:33.3%" >Iniciado</div>
+               {{end}}
                {{ end }}
                {{ if ge .State 1 }}
-               <div class="progress-bar progress-bar-warning" role="progressbar" style="width:33.3%"
-               >Configured</div>
+               {{if eq .Lang 0}}
+               <div class="progress-bar progress-bar-warning" role="progressbar" style="width:33.3%" >Configured</div>
+               {{else if eq .Lang 1}}
+               <div class="progress-bar progress-bar-warning" role="progressbar" style="width:33.3%" >Configurado</div>
+               {{end}}
                {{ end }}
                {{ if eq .State 2 }}
-               <div class="progress-bar progress-bar-success" role="progressbar" style="width:33.3%"
-               >Running</div>
+               {{if eq .Lang 0}}
+               <div class="progress-bar progress-bar-success" role="progressbar" style="width:33.3%" >Running</div>
+               {{else if eq .Lang 1}}
+               <div class="progress-bar progress-bar-success" role="progressbar" style="width:33.3%" >En ejecución</div>
+               {{end}}
                {{ end }}
                {{ if eq .State 3 }}
-               <div class="progress-bar progress-bar-danger" role="progressbar"
-               style="width:33.3%"
-               >Stopped</div>
+               {{if eq .Lang 0}}
+               <div class="progress-bar progress-bar-danger" role="progressbar" style="width:33.3%" >Stopped</div>
+               {{ else if eq .Lang 1}}
+               <div class="progress-bar progress-bar-danger" role="progressbar" style="width:33.3%" >Parado</div>
+               {{end}}
                {{ end }}
-            </div>
+           </div>
          </div>
       </div>
+           {{end}}
       <!-- following the conten of the page -->
       {{ template "content" . }}
    </div>

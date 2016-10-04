@@ -5,7 +5,11 @@
 {{ template "message" . }}
 
 <ol>
+    {{if eq .Lang 0 }}
    <li><a href="/stop/">Stop the experiment.</a></li>
+   {{else if eq .Lang 1 }}
+   <li><a href="/stop/">Stop the experiment.</a></li>
+   {{end}}
 </ol>
 
 {{ end }}

@@ -7,12 +7,20 @@
 
 <div class="panel panel-default">
   <div class="panel-heading">
+    {{if eq .Lang 0}}
     <h3 class="panel-title">Configuration: {{ .ConfigurationName}}</h3>
+    {{else if eq .Lang 1}}
+    <h3 class="panel-title">Configuración: {{ .ConfigurationName}}</h3>
+    {{end}}
   </div>
   <div class="panel-body">
 <div class="panel panel-default">
   <div class="panel-heading">
+    {{if eq .Lang 0}}
     <h3 class="panel-title">Base Sensors</h3>
+    {{else if eq .Lang 1}}
+    <h3 class="panel-title">Sensores en la Base</h3>
+    {{end}}
   </div>
   <div class="panel-body">
    <ul class="list-group">
@@ -57,7 +65,11 @@
 </div>
 <div class="panel panel-default">
   <div class="panel-heading">
+    {{if eq .Lang 0}}
     <h3 class="panel-title">Mobile Sensors</h3>
+    {{else if eq .Lang 1}}
+    <h3 class="panel-title">Sensores Móviles</h3>
+    {{end}}
   </div>
   <div class="panel-body">
    <ul class="list-group">
@@ -70,7 +82,11 @@
       <span class="glyphicon glyphicon-remove-circle"></span>
       {{end}}
    </li>
+   {{if eq .Lang 0}}
    <li class="list-group-item">Distance:
+   {{else if eq .Lang 1}}
+   <li class="list-group-item">Distancia:
+   {{end}}
       {{if eq .StateOfDistance 0}}
       <span class="glyphicon glyphicon-ban-circle"></span>
       {{else if eq .StateOfDistance 1}}
@@ -79,7 +95,11 @@
       <span class="glyphicon glyphicon-remove-circle"></span>
       {{end}}
    </li>
+   {{if eq .Lang 0}}
    <li class="list-group-item">Accelerometer:
+   {{else if eq .Lang 1}}
+   <li class="list-group-item">Acelerómetro:
+   {{end}}
       {{if eq .StateOfAccelerometer 0}}
       <span class="glyphicon glyphicon-ban-circle"></span>
       {{else if eq .StateOfAccelerometer 1}}
@@ -88,7 +108,11 @@
       <span class="glyphicon glyphicon-remove-circle"></span>
       {{end}}
    </li>
+   {{if eq .Lang 0}}
    <li class="list-group-item">Gyroscope:
+   {{else if eq .Lang 1}}
+   <li class="list-group-item">Giróscopo:
+   {{end}}
       {{if eq .StateOfGyroscope 0}}
       <span class="glyphicon glyphicon-ban-circle"></span>
       {{else if eq .StateOfGyroscope 1}}
@@ -103,7 +127,13 @@
   </div>
 </div>
   <br>
+  {{if eq .Lang 0}}
   <ol>
      <li><a href="/run/">Run the experiment.</a></li>
   </ol>
+  {{else if eq .Lang 1}}
+  <ol>
+     <li><a href="/run/">Ejecutar el experimento.</a></li>
+  </ol>
+  {{ end }}
 {{ end }}

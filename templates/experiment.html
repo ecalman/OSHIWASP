@@ -4,10 +4,17 @@
 </div>
 {{ template "message" . }}
 
-
-<ol>
+  {{if eq .Lang 0}}
+  <ol>
      <li><a href="/config/">Configure the sensors of the platform.</a></li>
      <li><a href="/test/">Test the sensors of the platform.</a></li>
      <li><a href="/run/">Run the experiment.</a></li>
   </ol>
+  {{else if eq .Lang 1}}
+  <ol>
+     <li><a href="/config/">Configurar los sensores de la plataforma.</a></li>
+     <li><a href="/test/">Comprobar los sensores de la plataforma.</a></li>
+     <li><a href="/run/">Ejecutar el experimento.</a></li>
+  </ol>
+  {{end}}
 {{ end }}

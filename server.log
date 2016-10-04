@@ -1,0 +1,11 @@
+2016/09/26 13:39:14 Open serial device /dev/rfcomm1
+2016/09/26 13:39:14 Arduino connected!
+2016/09/26 13:39:14 Set pin gpio22 as trackerA
+2016/09/26 13:39:14 Set pin gpio18 as trackerB
+2016/09/26 13:39:14 Set pin gpio17 as trackerC
+2016/09/26 13:39:14 Set pin gpio4 as trackerD
+2016/09/26 13:39:14 Set pin gpio24 as buttonA
+2016/09/26 13:39:14 Set pin gpio23 as buttonB
+2016/09/26 13:39:14 Set pin gpio7 as statusLed
+2016/09/26 13:39:14 Set pin gpio8 as actionLed
+2016/09/26 13:39:14 Listening on 192.168.1.1:8000
