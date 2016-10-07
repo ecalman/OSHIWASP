@@ -8,7 +8,7 @@
       {{if eq .Lang 0}}
       <label for="inputConfigurationName" class="control-label col-sm-3">Configuration Name</label>
       {{else if eq .Lang 1}}
-      <label for="inputConfigurationName" class="control-label col-sm-3">Nombre de la Configuration </label>
+      <label for="inputConfigurationName" class="control-label col-sm-3">Nombre de la Configuración </label>
       {{end}}
       <div class="col-sm-6">
 
@@ -115,15 +115,15 @@
 </form>
 <hr>
   {{if eq .Lang 0}}
-  <ol>
+  <ul>
      <li><a href="/test/">Test the sensors of the platform.</a></li>
      <li><a href="/run/">Run the experiment.</a></li>
-  </ol>
+  </ul>
   {{else if eq .Lang 1}}
-  <ol>
+  <ul>
      <li><a href="/test/">Comprobar los sensores de la plataforma.</a></li>
      <li><a href="/run/">Ejecutar el experimento.</a></li>
-  </ol>
+  </ul>
   {{end}}
 
 {{ end }}

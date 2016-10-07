@@ -5,12 +5,12 @@
 {{ template "message" . }}
 
   {{if eq .Lang 0}}
-  <ol>
+  <ul>
      <li><a href="/collect/">Download data acquired in the experiment.</a></li>
-  </ol>
+  </ul>
   {{else if eq .Lang 1}}
-  <ol>
+  <ul>
      <li><a href="/collect/">Descargar los datos adquiridos en el experimento.</a></li>
-  </ol>
+  </ul>
   {{end}}
 {{ end }}

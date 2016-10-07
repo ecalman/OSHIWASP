@@ -4,12 +4,12 @@
 </div>
 {{ template "message" . }}
 
-<ol>
+<ul>
     {{if eq .Lang 0 }}
    <li><a href="/stop/">Stop the experiment.</a></li>
    {{else if eq .Lang 1 }}
-   <li><a href="/stop/">Stop the experiment.</a></li>
+   <li><a href="/stop/">Parar el experimento.</a></li>
    {{end}}
-</ol>
+</ul>
 
 {{ end }}
